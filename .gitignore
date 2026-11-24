@@ -1,0 +1,11 @@
+# binários gerados por ./build.sh
+dist/
+
+# segredos e dados locais do bot
+.env
+miku_vars.json
+miku_vars.json.tmp
+
+# arquivos de editor/sistema
+.DS_Store
+*.swp
