@@ -256,13 +256,11 @@ func (p *parser) parseCommand() Stmt {
 	if p.isOp("(") {
 		d.Params = p.parseParams()
 	}
-	if p.isName("aliases") {
-		p.next()
-		for {
-			d.Aliases = append(d.Aliases, p.expectName("um apelido (alias)").Text)
-			if !p.accept(",") {
-				break
-			}
+	for p.isName("aliases") || p.isName("requires") {
+		if p.next().Text == "requires" {
+			d.Requires = p.parseNameList("uma permissão")
+		} else {
+			d.Aliases = p.parseNameList("um apelido (alias)")
 		}
 	}
 	p.expect(":")
@@ -296,9 +294,23 @@ func (p *parser) parseSlash() Stmt {
 	if p.isOp("(") {
 		d.Params = p.parseParams()
 	}
+	if p.isName("requires") {
+		p.next()
+		d.Requires = p.parseNameList("uma permissão")
+	}
 	p.expect(":")
 	d.Body = p.parseBlock()
 	return d
+}
+
+func (p *parser) parseNameList(what string) []string {
+	var out []string
+	for {
+		out = append(out, p.expectName(what).Text)
+		if !p.accept(",") {
+			return out
+		}
+	}
 }
 
 // parseParams lê "(a, b: int, c=1, *resto)" ou "(*, texto)".

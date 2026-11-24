@@ -201,6 +201,22 @@ func (b *Bot) handleCommand(m map[string]any) {
 
 func (b *Bot) runCommand(c *command, used string, m map[string]any, args string) {
 	cid := str(m, "channel_id")
+	if len(c.requires) > 0 {
+		gid := str(m, "guild_id")
+		if gid == "" {
+			b.sendPlain(cid, "🚫 esse comando só funciona em servidores.")
+			return
+		}
+		have, ok := b.guildPerms(gid, str(sub(m, "author"), "id"), memberRoleIDs(sub(m, "member")))
+		if !ok {
+			b.sendPlain(cid, "⚠️ ainda não carreguei esse servidor, tente de novo em instantes.")
+			return
+		}
+		if miss := missingPerms(have, c.requires); len(miss) > 0 {
+			b.sendPlain(cid, "🚫 você precisa da permissão: "+strings.Join(miss, ", "))
+			return
+		}
+	}
 	vars, err := b.bindArgs(c, used, args, m)
 	if err != nil {
 		b.sendPlain(cid, err.Error())

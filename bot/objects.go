@@ -188,8 +188,15 @@ func buildPayload(args []lang.Value, kw map[string]lang.Value) (map[string]any, 
 			}
 		}
 	}
+	var comps []any
+	if c, ok := kw["components"]; ok && c != nil {
+		var err error
+		if comps, err = componentsPayload(c); err != nil {
+			return nil, err
+		}
+	}
 	content := strings.Join(texts, "\n")
-	if content == "" && len(embeds) == 0 {
+	if content == "" && len(embeds) == 0 && len(comps) == 0 {
 		return nil, errors.New("não há nada para enviar (texto vazio)")
 	}
 	if n := len([]rune(content)); n > 2000 {
@@ -207,6 +214,9 @@ func buildPayload(args []lang.Value, kw map[string]lang.Value) (map[string]any, 
 	}
 	if len(embeds) > 0 {
 		p["embeds"] = embeds
+	}
+	if len(comps) > 0 {
+		p["components"] = comps
 	}
 	return p, nil
 }
@@ -335,6 +345,25 @@ func (b *Bot) newMember(m map[string]any, guildID string) *lang.Object {
 	}
 	o.Attrs["roles"] = &lang.List{Items: roles}
 	o.Repr = func() string { return display }
+	o.Attrs["has_permission"] = fn("has_permission", func(in *lang.Interp, a []lang.Value, kw map[string]lang.Value) (lang.Value, error) {
+		name, err := argStr("has_permission", a, 0)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := parsePerms([]string{name}); err != nil {
+			return nil, err
+		}
+		var have uint64
+		if ps := str(m, "permissions"); ps != "" {
+			have, _ = strconv.ParseUint(ps, 10, 64)
+			if have&permBits["administrator"] != 0 {
+				have = allPerms
+			}
+		} else if h, ok := b.guildPerms(guildID, id, memberRoleIDs(m)); ok {
+			have = h
+		}
+		return len(missingPerms(have, []string{name})) == 0, nil
+	})
 
 	needGuild := func(name string) error {
 		if guildID == "" {

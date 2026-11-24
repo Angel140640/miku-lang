@@ -1,0 +1,121 @@
+{
+  "Bot completo": {
+    "prefix": "bot",
+    "description": "Esqueleto de um bot",
+    "body": [
+      "token env(\"DISCORD_TOKEN\")",
+      "prefix \"${1:!}\"",
+      "",
+      "on ready:",
+      "    print(f\"♪ {bot.user.name} está no ar!\")",
+      "",
+      "command ping:",
+      "    reply \"Pong! 🎤\"",
+      "$0"
+    ]
+  },
+  "command": {
+    "prefix": "command",
+    "description": "Comando com prefixo",
+    "body": ["command ${1:nome}:", "    ${0:reply \"oi!\"}"]
+  },
+  "command com argumentos": {
+    "prefix": "commandp",
+    "description": "Comando com argumentos tipados",
+    "body": ["command ${1:nome}(${2:alvo}: ${3|str,int,float,bool,user,member,channel,role|}):", "    ${0:reply f\"{$2}\"}"]
+  },
+  "command com permissão": {
+    "prefix": "commandreq",
+    "description": "Comando que exige permissão",
+    "body": ["command ${1:ban}(${2:alvo}: member, *, ${3:motivo}) requires ${4:ban_members}:", "    $0"]
+  },
+  "on": {
+    "prefix": "on",
+    "description": "Ouvir um evento",
+    "body": ["on ${1|ready,message,message_edit,message_delete,member_join,member_remove,member_update,reaction_add,reaction_remove,guild_join,guild_remove,voice_state_update,component,modal|}(${2:message}):", "    $0"]
+  },
+  "on ready": {
+    "prefix": "onready",
+    "body": ["on ready:", "    print(f\"♪ {bot.user.name} está no ar!\")", "    $0"]
+  },
+  "on message": {
+    "prefix": "onmessage",
+    "body": ["on message(message):", "    if message.author.bot:", "        return", "    $0"]
+  },
+  "on member_join": {
+    "prefix": "onjoin",
+    "body": ["on member_join(membro):", "    bot.send(${1:canal_id}, f\"Bem-vindo(a) {membro.mention}!\")", "    $0"]
+  },
+  "slash": {
+    "prefix": "slash",
+    "description": "Slash command (módulo slash)",
+    "body": ["slash ${1:nome} \"${2:descrição}\" (${3:opcao}: ${4|str,int,float,bool,user,channel,role|}):", "    reply ${0:\"feito\"}, ephemeral=True"]
+  },
+  "def": {
+    "prefix": "def",
+    "body": ["def ${1:nome}(${2}):", "    ${0:pass}"]
+  },
+  "if": { "prefix": "if", "body": ["if ${1:condicao}:", "    $0"] },
+  "ifelse": { "prefix": "ifelse", "body": ["if ${1:condicao}:", "    $2", "else:", "    $0"] },
+  "for": { "prefix": "for", "body": ["for ${1:item} in ${2:lista}:", "    $0"] },
+  "while": { "prefix": "while", "body": ["while ${1:condicao}:", "    $0"] },
+  "try": {
+    "prefix": "try",
+    "body": ["try:", "    $1", "except as ${2:erro}:", "    ${0:print(erro)}"]
+  },
+  "reply": { "prefix": "reply", "body": ["reply ${1:\"texto\"}"] },
+  "embed": {
+    "prefix": "embed",
+    "description": "Embed (módulo embed)",
+    "body": [
+      "reply embed(",
+      "    title=\"${1:Título}\",",
+      "    description=\"${2:Descrição}\",",
+      "    color=\"${3:miku}\",",
+      ")"
+    ]
+  },
+  "botões": {
+    "prefix": "button",
+    "description": "Mensagem com botões (módulo components)",
+    "body": [
+      "reply \"${1:Escolha:}\", components=[",
+      "    button(\"${2:Sim}\", \"${3:sim}\", style=\"success\"),",
+      "    button(\"${4:Não}\", \"${5:nao}\", style=\"danger\"),",
+      "]"
+    ]
+  },
+  "on component": {
+    "prefix": "oncomponent",
+    "description": "Tratar clique de botão/menu",
+    "body": [
+      "on component(inter):",
+      "    if inter.custom_id == \"${1:sim}\":",
+      "        inter.update(\"${2:Você clicou!}\", components=[])",
+      "    $0"
+    ]
+  },
+  "modal": {
+    "prefix": "modal",
+    "body": ["inter.show_modal(modal(\"${1:id}\", \"${2:Título}\", text_input(\"${3:campo}\", \"${4:Rótulo}\")))"]
+  },
+  "every": {
+    "prefix": "every",
+    "description": "Repetir a cada N segundos (módulo time)",
+    "body": ["every(${1:60}, ${2:lambda: print(\"tick\")})"]
+  },
+  "after": {
+    "prefix": "after",
+    "body": ["after(${1:10}, ${2:lambda: print(\"passou\")})"]
+  },
+  "http_get": {
+    "prefix": "httpget",
+    "description": "Requisição GET (módulo http)",
+    "body": ["r = http_get(\"${1:https://api.exemplo.com}\")", "if r[\"ok\"]:", "    $0"]
+  },
+  "variável salva": {
+    "prefix": "varset",
+    "description": "Guardar valor em disco (módulo vars)",
+    "body": ["var_set(f\"${1:chave}:{${2:ctx.author.id}}\", ${3:valor})"]
+  }
+}

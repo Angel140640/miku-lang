@@ -256,10 +256,11 @@ type ActivityDecl struct {
 
 type CommandDecl struct {
 	st
-	Name    string
-	Aliases []string
-	Params  []Param
-	Body    []Stmt
+	Name     string
+	Aliases  []string
+	Requires []string // permissões exigidas de quem usa (ex.: ban_members)
+	Params   []Param
+	Body     []Stmt
 }
 
 type OnDecl struct {
@@ -272,10 +273,11 @@ type OnDecl struct {
 
 type SlashDecl struct {
 	st
-	Name   string
-	Desc   string
-	Params []Param
-	Body   []Stmt
+	Name     string
+	Desc     string
+	Requires []string
+	Params   []Param
+	Body     []Stmt
 }
 
 type Say struct { // reply ... / send ...

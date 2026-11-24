@@ -9,3 +9,6 @@ miku_vars.json.tmp
 # arquivos de editor/sistema
 .DS_Store
 *.swp
+miku_warns.json
+miku_warns.json.tmp
+vscode-miku/*.vsix

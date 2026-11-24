@@ -28,7 +28,7 @@ command moedas:
         color="teal",
     )
 
-command ban(alvo: member, *, motivo):
+command ban(alvo: member, *, motivo) requires ban_members:
     try:
         alvo.ban(reason=motivo)
         reply f"{alvo.name} banido."

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 type slashCmd struct {
 	name     string
 	desc     string
+	requires []string
 	params   []lang.Param
 	defaults []lang.Value
 	body     []lang.Stmt
@@ -42,11 +45,14 @@ func (b *Bot) addSlash(in *lang.Interp, d *lang.SlashDecl, env *lang.Env) error 
 	if len(b.slashes) >= 100 {
 		return errors.New("o Discord aceita no máximo 100 slash commands")
 	}
+	if _, err := parsePerms(d.Requires); err != nil {
+		return err
+	}
 	defs, err := b.evalDefaults(in, d.Params, env)
 	if err != nil {
 		return err
 	}
-	b.slashes = append(b.slashes, &slashCmd{name: d.Name, desc: d.Desc, params: d.Params, defaults: defs, body: d.Body})
+	b.slashes = append(b.slashes, &slashCmd{name: d.Name, desc: d.Desc, requires: d.Requires, params: d.Params, defaults: defs, body: d.Body})
 	return nil
 }
 
@@ -81,6 +87,10 @@ func (b *Bot) slashPayload() []any {
 			})
 		}
 		cmd := map[string]any{"name": s.name, "description": s.desc, "type": 1}
+		if bits, _ := parsePerms(s.requires); bits != 0 {
+			cmd["default_member_permissions"] = strconv.FormatUint(bits, 10)
+			cmd["dm_permission"] = false
+		}
 		if len(opts) > 0 {
 			cmd["options"] = opts
 		}
@@ -120,6 +130,7 @@ type interaction struct {
 	mu        sync.Mutex
 	responded bool
 	deferred  bool
+	deferType int // 5 = "pensando…" (resposta nova), 6 = adiamento silencioso de botão/menu
 }
 
 func (it *interaction) do(in *lang.Interp, method, path string, body any) (any, error) {
@@ -134,12 +145,16 @@ func (it *interaction) callbackPath() string {
 }
 
 func (it *interaction) deferNow(in *lang.Interp, ephemeral bool) error {
+	return it.deferAs(in, 5, ephemeral)
+}
+
+func (it *interaction) deferAs(in *lang.Interp, typ int, ephemeral bool) error {
 	it.mu.Lock()
 	defer it.mu.Unlock()
 	if it.responded || it.deferred {
 		return nil
 	}
-	body := map[string]any{"type": 5}
+	body := map[string]any{"type": typ}
 	if ephemeral {
 		body["data"] = map[string]any{"flags": 64}
 	}
@@ -147,6 +162,7 @@ func (it *interaction) deferNow(in *lang.Interp, ephemeral bool) error {
 		return err
 	}
 	it.deferred = true
+	it.deferType = typ
 	return nil
 }
 
@@ -169,7 +185,7 @@ func (it *interaction) reply(in *lang.Interp, a []lang.Value, kw map[string]lang
 		}
 		it.responded = true
 		return nil, nil
-	case it.deferred && !it.responded:
+	case it.deferred && !it.responded && it.deferType == 5:
 		delete(p, "flags")
 		res, err := it.do(in, "PATCH", "/webhooks/"+app+"/"+it.token+"/messages/@original", p)
 		if err != nil {
@@ -245,7 +261,17 @@ func (b *Bot) optionValue(p lang.Param, raw any, resolved map[string]any, gid st
 }
 
 func (b *Bot) handleInteraction(d map[string]any) {
-	if intv(d, "type") != 2 { // 2 = slash command
+	switch intv(d, "type") {
+	case 2: // slash command
+		if !b.Installed["slash"] {
+			return
+		}
+	case 3, 5: // botão/menu, modal
+		if b.Installed["components"] {
+			b.handleComponent(d)
+		}
+		return
+	default:
 		return
 	}
 	data := sub(d, "data")
@@ -275,6 +301,12 @@ func (b *Bot) handleInteraction(d map[string]any) {
 		}
 	}
 	it := &interaction{b: b, id: str(d, "id"), token: str(d, "token")}
+	if len(cmd.requires) > 0 {
+		if msg := b.slashPermError(d, cmd.requires); msg != "" {
+			_, _ = it.reply(nil, []lang.Value{msg}, map[string]lang.Value{"ephemeral": true})
+			return
+		}
+	}
 	vars["ctx"] = b.newSlashCtx(d, it)
 
 	// o Discord exige resposta em 3s: se o código demorar, avisa que está "pensando"
@@ -304,4 +336,24 @@ func (b *Bot) handleInteraction(d map[string]any) {
 	} else if err != nil {
 		_, _ = it.reply(nil, []lang.Value{"⚠️ Deu erro depois da resposta. Veja o console."}, map[string]lang.Value{"ephemeral": true})
 	}
+}
+
+func (b *Bot) slashPermError(d map[string]any, req []string) string {
+	mem := sub(d, "member")
+	if mem == nil {
+		return "🚫 esse comando só funciona em servidores."
+	}
+	var have uint64
+	if ps := str(mem, "permissions"); ps != "" { // o Discord já manda as permissões calculadas
+		have, _ = strconv.ParseUint(ps, 10, 64)
+		if have&permBits["administrator"] != 0 {
+			have = allPerms
+		}
+	} else if h, ok := b.guildPerms(str(d, "guild_id"), str(sub(mem, "user"), "id"), memberRoleIDs(mem)); ok {
+		have = h
+	}
+	if miss := missingPerms(have, req); len(miss) > 0 {
+		return "🚫 você precisa da permissão: " + strings.Join(miss, ", ")
+	}
+	return ""
 }

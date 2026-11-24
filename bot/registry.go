@@ -119,16 +119,39 @@ var moduleNameRe = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,31}$`)
 func Install(target string) (string, error) {
 	s := LoadState()
 	if IsBuiltinModule(target) {
+		have := map[string]bool{}
 		for _, n := range s.Installed {
-			if n == target {
-				return "o módulo '" + target + "' já estava instalado", nil
-			}
+			have[n] = true
 		}
-		s.Installed = append(s.Installed, target)
+		var added []string
+		var add func(name string)
+		add = func(name string) {
+			if have[name] {
+				return
+			}
+			for _, m := range Modules {
+				if m.Name == name {
+					for _, r := range m.Requires {
+						add(r) // dependências primeiro
+					}
+				}
+			}
+			have[name] = true
+			s.Installed = append(s.Installed, name)
+			added = append(added, name)
+		}
+		add(target)
+		if len(added) == 0 {
+			return "o módulo '" + target + "' já estava instalado", nil
+		}
 		if err := s.save(); err != nil {
 			return "", err
 		}
-		return "módulo '" + target + "' instalado", nil
+		msg := "módulo '" + target + "' instalado"
+		if len(added) > 1 {
+			msg += " (junto com as dependências: " + strings.Join(added[:len(added)-1], ", ") + ")"
+		}
+		return msg, nil
 	}
 
 	isURL := strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://")

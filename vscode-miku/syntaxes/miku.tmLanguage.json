@@ -1,0 +1,233 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Miku",
+  "scopeName": "source.miku",
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#directive" },
+    { "include": "#declaration" },
+    { "include": "#expression" }
+  ],
+  "repository": {
+    "comment": {
+      "match": "#.*$",
+      "name": "comment.line.number-sign.miku"
+    },
+
+    "directive": {
+      "patterns": [
+        {
+          "match": "^\\s*(token|prefix|intents|status|shards)\\b",
+          "captures": { "1": { "name": "keyword.control.directive.miku" } }
+        },
+        {
+          "match": "^\\s*(activity)\\s+(playing|listening|watching|competing)\\b",
+          "captures": {
+            "1": { "name": "keyword.control.directive.miku" },
+            "2": { "name": "constant.language.activity.miku" }
+          }
+        },
+        {
+          "match": "^\\s*(reply|send)\\b(?=\\s+[^=\\s])",
+          "captures": { "1": { "name": "keyword.control.say.miku" } }
+        }
+      ]
+    },
+
+    "declaration": {
+      "patterns": [
+        {
+          "match": "^\\s*(command)\\s+([A-Za-z_À-ÿ][\\w]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.command.miku" },
+            "2": { "name": "entity.name.function.command.miku" }
+          }
+        },
+        {
+          "match": "^\\s*(on)\\s+([A-Za-z_][\\w]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.event.miku" },
+            "2": { "name": "entity.name.tag.event.miku" }
+          }
+        },
+        {
+          "match": "^\\s*(slash)\\s+([A-Za-z0-9_-]+)",
+          "captures": {
+            "1": { "name": "keyword.declaration.slash.miku" },
+            "2": { "name": "entity.name.function.slash.miku" }
+          }
+        },
+        {
+          "match": "\\b(def)\\s+([A-Za-z_À-ÿ][\\w]*)",
+          "captures": {
+            "1": { "name": "keyword.declaration.function.miku" },
+            "2": { "name": "entity.name.function.miku" }
+          }
+        },
+        {
+          "match": "\\b(aliases|requires)\\b(?=\\s+[A-Za-z_])",
+          "name": "keyword.other.modifier.miku"
+        },
+        {
+          "match": ":\\s*(str|string|int|float|number|bool|user|member|channel|role|any)\\b(?=\\s*[,)=])",
+          "name": "storage.type.param.miku"
+        }
+      ]
+    },
+
+    "expression": {
+      "patterns": [
+        { "include": "#comment" },
+        { "include": "#fstring" },
+        { "include": "#string" },
+        { "include": "#number" },
+        { "include": "#constant" },
+        { "include": "#keyword" },
+        { "include": "#special-var" },
+        { "include": "#module-function" },
+        { "include": "#builtin" },
+        { "include": "#method-call" },
+        { "include": "#property" },
+        { "include": "#function-call" },
+        { "include": "#operator" }
+      ]
+    },
+
+    "string-escape": {
+      "match": "\\\\(?:[\\\\'\"nrt0abfv]|x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})",
+      "name": "constant.character.escape.miku"
+    },
+
+    "string": {
+      "patterns": [
+        {
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "name": "string.quoted.triple.miku",
+          "patterns": [{ "include": "#string-escape" }]
+        },
+        {
+          "begin": "\"",
+          "end": "\"|(?<!\\\\)$",
+          "name": "string.quoted.double.miku",
+          "patterns": [{ "include": "#string-escape" }]
+        },
+        {
+          "begin": "'",
+          "end": "'|(?<!\\\\)$",
+          "name": "string.quoted.single.miku",
+          "patterns": [{ "include": "#string-escape" }]
+        }
+      ]
+    },
+
+    "fstring": {
+      "patterns": [
+        {
+          "begin": "\\b([fF])(\"\"\")",
+          "end": "\"\"\"",
+          "beginCaptures": { "1": { "name": "storage.type.string.miku" } },
+          "name": "string.quoted.triple.fstring.miku",
+          "patterns": [
+            { "include": "#string-escape" },
+            { "match": "\\{\\{|\\}\\}", "name": "constant.character.escape.brace.miku" },
+            { "include": "#fstring-interpolation" }
+          ]
+        },
+        {
+          "begin": "\\b([fF])(\")",
+          "end": "\"|(?<!\\\\)$",
+          "beginCaptures": { "1": { "name": "storage.type.string.miku" } },
+          "name": "string.quoted.double.fstring.miku",
+          "patterns": [
+            { "include": "#string-escape" },
+            { "match": "\\{\\{|\\}\\}", "name": "constant.character.escape.brace.miku" },
+            { "include": "#fstring-interpolation" }
+          ]
+        },
+        {
+          "begin": "\\b([fF])(')",
+          "end": "'|(?<!\\\\)$",
+          "beginCaptures": { "1": { "name": "storage.type.string.miku" } },
+          "name": "string.quoted.single.fstring.miku",
+          "patterns": [
+            { "include": "#string-escape" },
+            { "match": "\\{\\{|\\}\\}", "name": "constant.character.escape.brace.miku" },
+            { "include": "#fstring-interpolation" }
+          ]
+        }
+      ]
+    },
+
+    "fstring-interpolation": {
+      "begin": "\\{",
+      "end": "\\}",
+      "beginCaptures": { "0": { "name": "punctuation.section.interpolation.begin.miku" } },
+      "endCaptures": { "0": { "name": "punctuation.section.interpolation.end.miku" } },
+      "name": "meta.interpolation.miku",
+      "patterns": [
+        { "match": "![rsa]", "name": "storage.type.format.conversion.miku" },
+        { "match": ":[^{}\"']*", "name": "constant.other.format-spec.miku" },
+        { "include": "#expression" }
+      ]
+    },
+
+    "number": {
+      "patterns": [
+        { "match": "\\b0[xX][0-9a-fA-F_]+\\b", "name": "constant.numeric.hex.miku" },
+        { "match": "\\b0[bB][01_]+\\b", "name": "constant.numeric.binary.miku" },
+        { "match": "\\b\\d[\\d_]*(\\.\\d[\\d_]*)?([eE][+-]?\\d+)?\\b", "name": "constant.numeric.miku" }
+      ]
+    },
+
+    "constant": {
+      "match": "\\b(True|False|None)\\b",
+      "name": "constant.language.miku"
+    },
+
+    "keyword": {
+      "patterns": [
+        {
+          "match": "\\b(if|elif|else|while|for|in|return|try|except|finally|raise|pass|break|continue|global|await|as|lambda)\\b",
+          "name": "keyword.control.miku"
+        },
+        { "match": "\\b(and|or|not|is)\\b", "name": "keyword.operator.logical.miku" }
+      ]
+    },
+
+    "special-var": {
+      "match": "(?<![.\\w])(ctx|message|bot|inter)\\b(?!\\s*=[^=])",
+      "name": "variable.language.miku"
+    },
+
+    "builtin": {
+      "match": "\\b(print|len|str|int|float|bool|list|tuple|dict|range|min|max|sum|abs|round|sorted|reversed|enumerate|zip|any|all|type|ord|chr|divmod|random|randint|choice|shuffle|sleep|now|env|Exception|to_json|from_json)\\b(?=\\s*\\()",
+      "name": "support.function.builtin.miku"
+    },
+
+    "module-function": {
+      "match": "\\b(embed|var_get|var_set|var_add|var_has|var_del|var_keys|rest_request|rest_send|rest_user|http_get|http_post|http_request|every|after|cancel|format_time|parse_duration|human_duration|discord_time|purge|lock|unlock|slowmode|unban|warn|warns|clear_warns|button|select|row|text_input|modal|eco_saldo|eco_add|nivel_de|xp_de|xp_do_nivel)\\b(?=\\s*\\()",
+      "name": "support.function.module.miku"
+    },
+
+    "method-call": {
+      "match": "(?<=\\.)([A-Za-z_][\\w]*)(?=\\s*\\()",
+      "name": "entity.name.function.method.miku"
+    },
+
+    "property": {
+      "match": "(?<=\\.)([A-Za-z_][\\w]*)\\b",
+      "name": "variable.other.property.miku"
+    },
+
+    "function-call": {
+      "match": "\\b([A-Za-z_À-ÿ][\\w]*)(?=\\s*\\()",
+      "name": "entity.name.function.call.miku"
+    },
+
+    "operator": {
+      "match": "\\*\\*|//|==|!=|<=|>=|\\+=|-=|\\*=|/=|%=|[-+*/%<>=]",
+      "name": "keyword.operator.miku"
+    }
+  }
+}

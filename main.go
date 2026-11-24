@@ -16,7 +16,7 @@ import (
 	"miku/lang"
 )
 
-const version = "0.2.0"
+const version = "0.3.0"
 
 const helpText = `Miku Lang v` + version + ` — a linguagem de bots da Hatsune Miku ♪
 (um programa só: não precisa de Python, Node nem nada instalado)
@@ -79,6 +79,7 @@ func main() { os.Exit(run(os.Args[1:])) }
 
 func run(args []string) int {
 	platformFix()
+	bot.Version = version
 	if len(args) == 0 {
 		fmt.Println(helpText)
 		return 0
@@ -189,6 +190,16 @@ func cmdRun(args []string) int {
 	in := lang.New(os.Stdout)
 	b := bot.New(in, bot.InstalledSet(), logf)
 
+	for _, mk := range bot.InstalledMkModules() {
+		mprog, err := lang.Parse(mk.Code)
+		if err == nil {
+			err = in.Exec(mprog)
+		}
+		if err != nil {
+			printLangError("módulo "+mk.Name, mk.Code, err)
+			return 1
+		}
+	}
 	for _, mp := range bot.CustomPaths() {
 		raw, err := os.ReadFile(mp)
 		if err != nil {

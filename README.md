@@ -95,7 +95,15 @@ command eco(*, texto):                    # *, nome  = pega o resto da linha
 
 command quem(alvo: user): ...             # tipos: str int float bool user channel role
 command todos(*nomes): ...                # *nome = lista com o resto
+
+command ban(alvo: member, *, motivo) requires ban_members:   # só quem tem a permissão usa
+    alvo.ban(reason=motivo)
 ```
+
+`requires` aceita várias permissões separadas por vírgula (`requires manage_messages, kick_members`). Dono e administradores
+sempre passam; quem não tem recebe "🚫 você precisa da permissão: …". Nomes: `administrator ban_members kick_members
+manage_guild manage_channels manage_messages manage_roles manage_nicknames moderate_members view_audit_log …`.
+Também existe `membro.has_permission("ban_members")` para checar dentro do código.
 
 Se o usuário errar um argumento, o bot já responde com o uso (`Uso: !soma <a> [b]`).
 Dentro do comando existe `ctx` (e também `message`).
@@ -124,6 +132,8 @@ send "texto sem citar"
 | `reaction_add`, `reaction_remove` | `reaction` |
 | `guild_join`, `guild_remove` | `guild` |
 | `voice_state_update` | `state` (dicionário cru) |
+| `component` | `inter` — clique em botão/menu (módulo `components`) |
+| `modal` | `inter` — formulário enviado (módulo `components`) |
 
 Renomeie os parâmetros se quiser: `on member_join(membro):`. Qualquer outro evento do gateway chega cru:
 `on channel_create(data):` recebe o dicionário do Discord.
@@ -158,7 +168,46 @@ O núcleo só traz o necessário para ligar um bot. O resto você instala quando
 | `embed` | `embed(title=, description=, color=, fields=, footer=, image=, thumbnail=, author=, url=, timestamp=)` |
 | `vars` | `var_get var_set var_add var_has var_del` — guardados em `miku_vars.json` |
 | `rest` | `rest_request("GET", "/users/@me")`, `rest_send(canal, ...)`, `rest_user(id)` |
+| `http` | `http_get(url)`, `http_post(url, json=)`, `http_request("PUT", url, ...)` → `{status, ok, text, json, headers}` |
+| `time` | `every(60, fn)`, `after(10, fn)`, `cancel(id)`, `format_time(ts, "%d/%m/%Y %H:%M", "America/Sao_Paulo")`, `parse_duration("1h30m")`, `human_duration(s)`, `discord_time(ts, "R")` |
+| `mod` | `purge(canal, 50)`, `lock(canal)`, `unlock(canal)`, `slowmode(canal, 10)`, `unban(servidor, id)`, `warn/warns/clear_warns` |
+| `components` | `button`, `select`, `row`, `text_input`, `modal` + `on component(inter)` / `on modal(inter)` |
 
+**Módulos prontos** (escritos em Miku, instalam as dependências sozinhos):
+
+| Módulo | O que traz |
+|---|---|
+| `economia` | `saldo`, `diario`, `trabalhar`, `pagar`, `top` — moedas por servidor |
+| `niveis` | XP por mensagem, avisa quando sobe de nível, `rank`, `ranking` |
+| `boasvindas` | mensagem quando alguém entra: `boasvindas #canal`, `msgboasvindas texto`, `boasvindas_off` (liga a intent *Server Members*) |
+
+`var_keys("prefixo")` (módulo `vars`) lista as chaves guardadas.
+
+### Botões, menus e modais
+
+```
+command menu:
+    reply "Escolha:", components=[
+        button("Sim", "sim", style="success"),
+        button("Docs", url="https://exemplo.com"),
+        select("cor", ["azul", ("Verde", "verde")], placeholder="cor"),
+    ]
+
+on component(inter):
+    if inter.custom_id == "sim":
+        inter.update("Você clicou!", components=[])      # edita a mensagem do botão
+    elif inter.custom_id == "cor":
+        inter.reply("cor: " + inter.values[0], ephemeral=True)
+
+# formulário: inter.show_modal(modal("id", "Título", text_input("campo", "Rótulo")))
+on modal(inter):
+    inter.reply(f"oi {inter.fields['campo']}")
+```
+
+`inter`: `custom_id kind values fields author member guild channel message` · `reply() defer() update() show_modal()`.
+Se o código não responder, a Miku confirma o clique sozinha.
+
+`http` bloqueia endereços de rede interna (localhost, 192.168.x…) por segurança; use `allow_private=True` se for de propósito.
 Se você usar algo de um módulo que não instalou, o erro já diz qual `miku install` rodar.
 
 **Módulos seus**: qualquer arquivo `.mk` vira módulo — `miku install ./util.mk` (ou uma URL). Ele roda antes do
@@ -167,8 +216,12 @@ mesmas permissões do bot: instale só de fontes confiáveis. Os dados ficam em 
 
 ## Limitações atuais
 
-Sem voz, sem botões/menus/modais (dá para tratar `on interaction_create(data)` cru), sem envio de arquivos,
-sem cache de mensagens antigas.
+Sem voz, sem envio de arquivos, sem menus de usuário/cargo/canal, sem cache de mensagens antigas.
+
+## Editor (VSCode)
+
+A pasta [`vscode-miku/`](vscode-miku) é uma extensão com realce de sintaxe, snippets e erros na aba Problemas.
+Instruções no README dela.
 
 ## Compilar do código-fonte
 

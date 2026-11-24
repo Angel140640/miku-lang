@@ -1,0 +1,45 @@
+{
+  "name": "miku-lang",
+  "displayName": "Miku Lang",
+  "description": "Realce de sintaxe, snippets e verificação de erros para a linguagem Miku (.mk) — bots de Discord.",
+  "version": "0.1.0",
+  "publisher": "mikulang",
+  "license": "MIT",
+  "engines": { "vscode": "^1.60.0" },
+  "categories": ["Programming Languages", "Snippets"],
+  "keywords": ["miku", "mikulang", "discord", "bot", "mk"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "miku",
+        "aliases": ["Miku", "Miku Lang", "mk"],
+        "extensions": [".mk"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "miku",
+        "scopeName": "source.miku",
+        "path": "./syntaxes/miku.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      { "language": "miku", "path": "./snippets/miku.json" }
+    ],
+    "problemMatchers": [
+      {
+        "name": "miku",
+        "owner": "miku",
+        "fileLocation": ["autoDetect", "${workspaceFolder}"],
+        "severity": "error",
+        "pattern": {
+          "regexp": "^✗ (.+):(\\d+): (.+)$",
+          "file": 1,
+          "line": 2,
+          "message": 3
+        }
+      }
+    ]
+  }
+}

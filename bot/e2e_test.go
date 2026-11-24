@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -21,6 +22,7 @@ import (
 type recorded struct {
 	Method, Path string
 	Body         map[string]any
+	Raw          string
 }
 
 type fake struct {
@@ -47,7 +49,7 @@ func (f *fake) restHandler(w http.ResponseWriter, r *http.Request) {
 	var body map[string]any
 	_ = json.Unmarshal(raw, &body)
 	f.mu.Lock()
-	f.reqs = append(f.reqs, recorded{r.Method, r.URL.Path, body})
+	f.reqs = append(f.reqs, recorded{r.Method, r.URL.Path, body, string(raw)})
 	f.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
 	p := r.URL.Path
@@ -56,6 +58,11 @@ func (f *fake) restHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	case r.Method == "PUT" && strings.HasSuffix(p, "/commands"):
 		w.Write([]byte("[]"))
+	case r.Method == "GET" && strings.HasSuffix(p, "/messages"):
+		id := strconv.FormatInt((time.Now().UnixMilli()-discordEpoch)<<22, 10)
+		w.Write([]byte(`[{"id":"` + id + `"},{"id":"` + id + `1"},{"id":"1"}]`)) // o último é antigo (>14 dias)
+	case r.Method == "GET" && p == "/channels/C1":
+		w.Write([]byte(`{"id":"C1","guild_id":"G1","permission_overwrites":[{"id":"G1","type":0,"allow":"0","deny":"64"}]}`))
 	case strings.HasPrefix(p, "/users/") && r.Method == "GET":
 		w.Write([]byte(`{"id":"U9","username":"zed"}`))
 	default:
@@ -108,7 +115,12 @@ func (f *fake) gatewayHandler(w http.ResponseWriter, r *http.Request) {
 				"application":        map[string]any{"id": "APP"},
 			})
 			f.send(0, "GUILD_CREATE", map[string]any{
-				"id": "G1", "name": "Servidor", "member_count": 3,
+				"id": "G1", "name": "Servidor", "member_count": 3, "owner_id": "OWN",
+				"roles": []any{
+					map[string]any{"id": "G1", "permissions": "0"},
+					map[string]any{"id": "RBAN", "permissions": "4"},
+					map[string]any{"id": "RADM", "permissions": "8"},
+				},
 				"channels": []any{map[string]any{"id": "C1", "name": "geral", "type": 0}},
 			})
 		case float64(1):
@@ -148,6 +160,9 @@ func start(t *testing.T, src string, modules ...string) (*fake, *Bot) {
 	done := make(chan error, 1)
 	go func() { done <- b.Run(ctx) }()
 	t.Cleanup(func() {
+		if t.Failed() {
+			t.Logf("logs do bot:\n%s\nsaída:\n%s", f.logText(), f.stdout())
+		}
 		cancel()
 		select {
 		case <-done:
@@ -539,4 +554,28 @@ slash sussurro "Só você vê":
 	if d, _ := cb.Body["data"].(map[string]any); d["flags"] != float64(64) || d["content"] != "psiu" {
 		t.Errorf("ephemeral não chegou: %v", cb.Body)
 	}
+}
+
+func (f *fake) lastPutBody() string {
+	reqs := f.requests()
+	for i := len(reqs) - 1; i >= 0; i-- {
+		if reqs[i].Method == "PUT" {
+			return reqs[i].Raw
+		}
+	}
+	return ""
+}
+
+func tryDeclare(src string, modules ...string) (*Bot, error) {
+	set := map[string]bool{}
+	for _, m := range modules {
+		set[m] = true
+	}
+	in := lang.New(nil)
+	b := New(in, set, nil)
+	prog, err := lang.Parse(src)
+	if err != nil {
+		return nil, err
+	}
+	return b, in.Exec(prog)
 }

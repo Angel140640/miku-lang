@@ -1,6 +1,7 @@
 package bot
 
 import (
+	"embed"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -18,6 +19,8 @@ type Module struct {
 	Desc     string
 	Provides []string // nomes que o módulo cria (usado para dar dica quando faltam)
 	Apply    func(b *Bot)
+	Requires []string // módulos que são instalados junto
+	Source   string   // código .mk embutido (módulos escritos em Miku)
 }
 
 var Modules = []Module{
@@ -25,9 +28,43 @@ var Modules = []Module{
 	{Name: "slash", Desc: `slash commands (diretiva: slash nome "descrição" (param: tipo):)`},
 	{Name: "embed", Desc: "função embed(...) para montar embeds bonitos", Provides: []string{"embed"}, Apply: applyEmbed},
 	{Name: "vars", Desc: "variáveis salvas em disco: var_get, var_set, var_add, var_has, var_del",
-		Provides: []string{"var_get", "var_set", "var_add", "var_has", "var_del"}, Apply: applyVars},
+		Provides: []string{"var_get", "var_set", "var_add", "var_has", "var_del", "var_keys"}, Apply: applyVars},
 	{Name: "rest", Desc: "chamadas diretas à API REST do Discord: rest_request, rest_send, rest_user",
 		Provides: []string{"rest_request", "rest_send", "rest_user"}, Apply: applyRest},
+	{Name: "http", Desc: "requisições web: http_get, http_post, http_request (bloqueia redes internas por segurança)",
+		Provides: []string{"http_get", "http_post", "http_request"}, Apply: applyHTTP},
+	{Name: "time", Desc: "tempo: every, after, cancel, format_time, parse_duration, human_duration, discord_time",
+		Provides: []string{"every", "after", "cancel", "format_time", "parse_duration", "human_duration", "discord_time"}, Apply: applyTime},
+	{Name: "mod", Desc: "moderação: purge, lock, unlock, slowmode, unban, warn, warns, clear_warns",
+		Provides: []string{"purge", "lock", "unlock", "slowmode", "unban", "warn", "warns", "clear_warns"}, Apply: applyMod},
+	{Name: "components", Desc: "botões, menus e modais: button, select, row, text_input, modal + on component/modal",
+		Provides: []string{"button", "select", "row", "text_input", "modal"}, Apply: applyComponents},
+	{Name: "economia", Desc: "pronto: moedas por servidor (saldo, diario, trabalhar, pagar, top)",
+		Requires: []string{"vars", "embed", "time"}, Source: "mkmods/economia.mk"},
+	{Name: "niveis", Desc: "pronto: XP por mensagem, níveis e ranking (rank, ranking)",
+		Requires: []string{"vars", "embed", "time"}, Source: "mkmods/niveis.mk"},
+	{Name: "boasvindas", Desc: "pronto: mensagem de boas-vindas quando alguém entra (precisa da intent Server Members)",
+		Requires: []string{"vars"}, Source: "mkmods/boasvindas.mk"},
+}
+
+//go:embed mkmods/*.mk
+var mkFS embed.FS
+
+// MkSource é um módulo escrito em Miku (embutido) que deve rodar antes do programa.
+type MkSource struct{ Name, Code string }
+
+// InstalledMkModules devolve o código dos módulos .mk embutidos que estão instalados, na ordem da lista.
+func InstalledMkModules() []MkSource {
+	on := InstalledSet()
+	var out []MkSource
+	for _, m := range Modules {
+		if m.Source != "" && on[m.Name] {
+			if raw, err := mkFS.ReadFile(m.Source); err == nil {
+				out = append(out, MkSource{m.Name, string(raw)})
+			}
+		}
+	}
+	return out
 }
 
 func IsBuiltinModule(name string) bool {
@@ -306,6 +343,22 @@ func applyVars(b *Bot) {
 	def("var_has", func(k string, a []lang.Value) (lang.Value, error) {
 		_, ok := data.GetStr(k)
 		return ok, nil
+	})
+	b.In.DefineFunc("var_keys", func(_ *lang.Interp, a []lang.Value, kw map[string]lang.Value) (lang.Value, error) {
+		if err := load(); err != nil {
+			return nil, err
+		}
+		prefix := ""
+		if len(a) > 0 {
+			prefix = lang.Str(a[0])
+		}
+		out := []lang.Value{}
+		for _, k := range data.Keys() {
+			if ks, ok := k.(string); ok && strings.HasPrefix(ks, prefix) {
+				out = append(out, ks)
+			}
+		}
+		return &lang.List{Items: out}, nil
 	})
 	def("var_del", func(k string, a []lang.Value) (lang.Value, error) {
 		ok, _ := data.Delete(k)
