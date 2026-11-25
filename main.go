@@ -16,10 +16,9 @@ import (
 	"miku/lang"
 )
 
-const version = "0.3.0"
+const version = "0.3.1"
 
-const helpText = `Miku Lang v` + version + ` — a linguagem de bots da Hatsune Miku ♪
-(um programa só: não precisa de Python, Node nem nada instalado)
+const helpText = `Miku Lang v` + version + ` — a linguagem de bots da Hatsune Miku
 
 uso:
   miku help                 mostra esta ajuda
